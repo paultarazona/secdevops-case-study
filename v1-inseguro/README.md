@@ -88,12 +88,27 @@ Returns a valid JWT for the first row in `users` (alice), no password needed.
 bcrypt/argon2. Anyone with read access to the SQLite file (or the SQL
 injection above) gets every user's password in cleartext, not just a hash.
 
+Exploit — dump plaintext passwords directly from the DB file (no app needed):
+```bash
+sqlite3 v1-inseguro/data/v1-inseguro.db "SELECT username, password_hash FROM users;"
+# -> alice|alice123
+# -> bob|bob123
+```
+
 ### 3. Insecure JWT — `src/config.js`, `src/middleware/auth.js`, `src/routes/auth.js`
 `JWT_SECRET` is a hardcoded string literal in source (`src/config.js`), and
 tokens are signed with `jwt.sign(payload, JWT_SECRET)` with **no `expiresIn`**,
 so a token issued once never expires. Combined with the known jsonwebtoken CVE
 below, a leaked secret or the vulnerable library lets an attacker forge tokens
 that are valid forever.
+
+Exploit — decode the token payload and confirm there is no `exp` claim:
+```bash
+TOKEN=$(curl -s -X POST http://localhost:3000/api/auth/login -H "Content-Type: application/json" \
+  -d '{"username":"alice","password":"alice123"}' | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).token))")
+echo $TOKEN | cut -d. -f2 | base64 -d
+# -> {"id":1,"username":"alice","iat":...}   <- no "exp" field, token never expires
+```
 
 ### 4. Broken Access Control (IDOR) — `src/routes/resources.js`
 `GET/PUT/DELETE /api/resources/:id`, the upload endpoint, and the download
@@ -141,6 +156,15 @@ above the intended `src/uploads/`), not inside the uploads folder.
   errors, `err.message`) directly in the JSON response body, leaking file
   paths, library internals, and query details to the client.
 - No rate limiting on `POST /api/auth/login` — unlimited brute-force attempts.
+
+Exploit — confirm the open CORS header and the leaked stack trace on error:
+```bash
+curl -s -i -X POST http://localhost:3000/api/auth/register -H "Content-Type: application/json" \
+  -H "Origin: https://evil.example.com" -d '{"username":"alice","password":"x"}'
+# -> HTTP 200s show "Access-Control-Allow-Origin: *" regardless of Origin sent
+# -> registering an existing username returns the full SqliteError stack trace
+#    (file paths, line numbers, library internals) in the JSON error body
+```
 
 ### 7. Hardcoded secrets — `src/config.js`, `src/db/connection.js`, `server.js`
 `JWT_SECRET`, the SQLite file path, and the HTTP port are literal values

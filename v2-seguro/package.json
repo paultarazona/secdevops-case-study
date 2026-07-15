@@ -6,10 +6,12 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "seed": "node src/db/seed.js"
+    "seed": "node src/db/seed.js",
+    "lint": "eslint .",
+    "test": "node --test"
   },
   "dependencies": {
-    "bcrypt": "^5.1.1",
+    "bcrypt": "^6.0.0",
     "better-sqlite3": "^12.11.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
@@ -20,5 +22,11 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
     "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.7.0",
+    "globals": "^17.7.0",
+    "supertest": "^7.2.2"
   }
 }

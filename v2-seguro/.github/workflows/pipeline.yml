@@ -1,0 +1,226 @@
+name: v2-seguro SecDevOps Pipeline
+
+# This pipeline is exclusive to v2-seguro (the hardened version of the case
+# study). v1-inseguro intentionally has no pipeline - it exists to be broken.
+# `paths` scopes triggering to changes under v2-seguro/ only, so touching
+# v1-inseguro/ or informe/ never runs this workflow.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'v2-seguro/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'v2-seguro/**'
+
+defaults:
+  run:
+    working-directory: v2-seguro
+
+env:
+  IMAGE_NAME: v2-seguro
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  # 1. Lint + unit/integration tests. First gate: fast, cheap, fails the
+  # pipeline immediately on code-quality or functional regressions before any
+  # security tooling runs.
+  lint-test:
+    name: Lint + unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: v2-seguro/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit + HTTP tests
+        run: npm test
+
+  # 2. SAST - Semgrep, scanning only v2-seguro/src with OWASP Top 10 +
+  # Node.js-specific rulesets. Runs `semgrep ci`-equivalent via the CLI
+  # directly (no Semgrep AppSec Platform token required) so it works in any
+  # fork without extra secrets. Findings of at least "ERROR" severity fail
+  # the job (`--error`); the full JSON report is uploaded as a build artifact
+  # regardless of outcome so findings are inspectable even on a clean run.
+  sast-semgrep:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-latest
+    needs: lint-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Semgrep
+        run: pip install semgrep
+
+      - name: Run Semgrep (OWASP Top 10 + Node.js security rules)
+        working-directory: v2-seguro
+        run: |
+          semgrep scan \
+            --config p/owasp-top-ten \
+            --config p/nodejsscan \
+            --config p/secrets \
+            src \
+            --error \
+            --severity ERROR \
+            --json --output semgrep-report.json \
+            --sarif --output semgrep-report.sarif
+
+      - name: Upload Semgrep report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-report
+          path: |
+            v2-seguro/semgrep-report.json
+            v2-seguro/semgrep-report.sarif
+
+  # 3. SCA - npm audit against v2-seguro's own dependency tree. Fails on
+  # high/critical advisories (production and dev dependencies alike).
+  sca-npm-audit:
+    name: SCA (npm audit)
+    runs-on: ubuntu-latest
+    needs: lint-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: v2-seguro/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: npm audit (fail on high/critical)
+        run: npm audit --audit-level=high
+
+  # 4. Secret scanning - gitleaks against the full git history (fetch-depth
+  # 0), not just the working tree, so a secret committed and later removed
+  # is still caught.
+  secret-scan-gitleaks:
+    name: Secret scanning (gitleaks)
+    runs-on: ubuntu-latest
+    needs: lint-test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Default gitleaks-action behavior already fails the job (non-zero
+          # exit) when leaks are found.
+
+  # 5 + 6. Build the Docker image and scan it with Trivy. Kept as two steps
+  # in the same job (rather than two jobs) so the image built in step 5
+  # doesn't need to be exported/imported across job boundaries - Trivy scans
+  # it directly from the local Docker daemon on the same runner.
+  docker-build-and-scan:
+    name: Build image + Trivy scan
+    runs-on: ubuntu-latest
+    needs: [sast-semgrep, sca-npm-audit, secret-scan-gitleaks]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        working-directory: v2-seguro
+        run: docker build -t ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} .
+
+      - name: Scan image with Trivy (fail on HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: '${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}'
+          format: 'table'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'
+          ignore-unfixed: true
+
+      - name: Trivy scan (SARIF report artifact)
+        if: always()
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: '${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}'
+          format: 'sarif'
+          output: 'trivy-report.sarif'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '0'
+
+      - name: Upload Trivy report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report
+          path: trivy-report.sarif
+
+  # 7. (Optional) DAST - OWASP ZAP baseline scan against a container started
+  # from the image built above. Left non-blocking (`continue-on-error: true`
+  # on the job) on purpose: a baseline passive scan against a JWT-authenticated
+  # JSON API mostly reports "informational" findings (no authenticated
+  # crawling, no knowledge of our token flow, no CSRF token / login form to
+  # drive), so treating it as a hard gate would produce noisy false failures.
+  # It still runs and its report is uploaded for manual review.
+  dast-zap-baseline:
+    name: DAST (OWASP ZAP baseline, informational)
+    runs-on: ubuntu-latest
+    needs: docker-build-and-scan
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        working-directory: v2-seguro
+        run: docker build -t ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} .
+
+      - name: Start container
+        run: |
+          docker run -d --name v2-seguro-zap-target \
+            -p 3000:3000 \
+            -e NODE_ENV=production \
+            -e PORT=3000 \
+            -e CORS_ORIGIN=http://localhost:3000 \
+            -e JWT_SECRET=ci-zap-baseline-secret-not-for-production \
+            -e JWT_REFRESH_SECRET=ci-zap-baseline-refresh-secret-not-for-production \
+            -e DB_PATH=/app/data/zap-baseline.db \
+            ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+
+      - name: Wait for the app to become healthy
+        run: |
+          for i in $(seq 1 20); do
+            if curl -sf http://localhost:3000/health > /dev/null; then
+              echo "App is up"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "App did not become healthy in time"
+          docker logs v2-seguro-zap-target || true
+          exit 1
+
+      - name: ZAP baseline scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: 'http://localhost:3000'
+          fail_action: false
+          cmd_options: '-a'
+
+      - name: Stop container
+        if: always()
+        run: docker rm -f v2-seguro-zap-target || true

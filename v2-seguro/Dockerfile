@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293
 
 WORKDIR /app
 
@@ -18,8 +18,12 @@ COPY . .
 
 RUN mkdir -p data src/uploads
 
+# npm is needed only to install production dependencies. Removing it prevents
+# unused npm tooling from expanding the production image's attack surface.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx /root/.npm
+
 ENV NODE_ENV=production
 
 EXPOSE 3000
 
-CMD ["npm", "start"]
+CMD ["node", "server.js"]

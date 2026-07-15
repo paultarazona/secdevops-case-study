@@ -77,8 +77,8 @@ jobs:
             src \
             --error \
             --severity ERROR \
-            --json --output semgrep-report.json \
-            --sarif --output semgrep-report.sarif
+            --json-output=semgrep-report.json \
+            --sarif-output=semgrep-report.sarif
 
       - name: Upload Semgrep report
         if: always()

@@ -220,6 +220,7 @@ jobs:
         with:
           target: 'http://localhost:3000'
           fail_action: false
+          allow_issue_writing: false
           cmd_options: '-a'
 
       - name: Stop container

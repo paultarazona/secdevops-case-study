@@ -1,0 +1,11 @@
+node_modules/
+*.db
+*.db-journal
+.env
+!.env.example
+v1-inseguro/src/uploads/*
+!v1-inseguro/src/uploads/.gitkeep
+v2-seguro/src/uploads/*
+!v2-seguro/src/uploads/.gitkeep
+*.log
+.claude/settings.local.json

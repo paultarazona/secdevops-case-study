@@ -20,7 +20,7 @@
     "file-type": "^16.5.4",
     "helmet": "^7.2.0",
     "jsonwebtoken": "^9.0.2",
-    "multer": "^1.4.5-lts.1",
+    "multer": "^2.0.2",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -28,5 +28,12 @@
     "eslint": "^10.7.0",
     "globals": "^17.7.0",
     "supertest": "^7.2.2"
+  },
+  "overrides": {
+    "tar": "^7.5.11",
+    "cross-spawn": "^7.0.5",
+    "glob": "^11.1.0",
+    "minimatch": "^10.2.1",
+    "sigstore": "^4.1.1"
   }
 }

@@ -4,3 +4,4 @@ data/
 src/uploads/*
 !src/uploads/.gitkeep
 npm-debug.log*
+.atl

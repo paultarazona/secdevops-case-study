@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('node:path');
 
 const requireAuth = require('./middleware/auth');
 const authRoutes = require('./routes/auth');
@@ -13,6 +14,7 @@ const app = express();
 // - No rate limiting on /api/auth/login (brute force is unthrottled).
 app.use(cors({ origin: '*' }));
 app.use(express.json());
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 

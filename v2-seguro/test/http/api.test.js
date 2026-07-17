@@ -27,6 +27,14 @@ test.after(() => {
   }
 });
 
+test('serves the static frontend entry point', async () => {
+  const res = await request(app).get('/');
+
+  assert.equal(res.status, 200);
+  assert.match(res.headers['content-type'], /text\/html/);
+  assert.match(res.text, /SECDEVOPS CASE STUDY \/ V2/);
+});
+
 test('register + login issues a working access token', async () => {
   const registerRes = await request(app)
     .post('/api/auth/register')

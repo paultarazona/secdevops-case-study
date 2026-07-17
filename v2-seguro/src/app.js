@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('node:path');
 
 const buildHelmetMiddleware = require('./config/helmet');
 const corsOptions = require('./config/cors');
@@ -15,6 +16,7 @@ const app = express();
 app.use(buildHelmetMiddleware());
 app.use(cors(corsOptions));
 app.use(express.json());
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 

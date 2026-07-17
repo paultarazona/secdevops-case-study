@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SecDevOps Resource Lab</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="/style.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="masthead">
+        <div>
+          <p class="eyebrow">SECDEVOPS CASE STUDY / V2</p>
+          <h1>Resource Lab</h1>
+          <p class="lede">Secure resource management with authenticated CRUD and validated file handling.</p>
+        </div>
+        <div class="signal" aria-label="Secure version">V2<br><span>HARDENED</span></div>
+      </header>
+
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+
+      <section id="auth-section" class="panel auth-panel" aria-labelledby="auth-title">
+        <div class="panel-heading">
+          <p class="eyebrow">ACCESS</p>
+          <h2 id="auth-title">Enter the workspace</h2>
+        </div>
+        <form id="auth-form" class="form-grid">
+          <label>Username<input id="username" name="username" autocomplete="username" required></label>
+          <label>Password<input id="password" name="password" type="password" autocomplete="current-password" required></label>
+          <div class="form-actions">
+            <button type="submit" name="action" value="login">Sign in</button>
+            <button type="submit" name="action" value="register" class="secondary">Create account</button>
+          </div>
+        </form>
+      </section>
+
+      <section id="workspace" hidden>
+        <div class="workspace-bar">
+          <div><p class="eyebrow">ACTIVE SESSION</p><strong id="current-user"></strong></div>
+          <button id="logout" class="secondary">Sign out</button>
+        </div>
+
+        <div class="workspace-grid">
+          <section class="panel" aria-labelledby="resource-form-title">
+            <div class="panel-heading">
+              <p class="eyebrow">WRITE</p>
+              <h2 id="resource-form-title">Create a resource</h2>
+            </div>
+            <form id="resource-form" class="stacked-form">
+              <label>Title<input id="resource-title" name="title" maxlength="120" required></label>
+              <label>Content<textarea id="resource-content" name="content" rows="7" maxlength="5000"></textarea></label>
+              <div class="form-actions">
+                <button id="resource-submit" type="submit">Save resource</button>
+                <button id="cancel-edit" type="button" class="secondary" hidden>Cancel edit</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="panel" aria-labelledby="resources-title">
+            <div class="panel-heading panel-heading-row">
+              <div><p class="eyebrow">READ</p><h2 id="resources-title">Your resources</h2></div>
+              <button id="refresh-resources" class="secondary">Refresh</button>
+            </div>
+            <div id="resource-list" class="resource-list" aria-live="polite"></div>
+          </section>
+        </div>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

@@ -45,7 +45,7 @@ cd v2-seguro
 cp .env.example .env      # edit values if needed, especially secrets
 npm install
 npm run seed               # creates data/v2-seguro.db, applies schema.sql, inserts test users
-npm start                  # listens on http://localhost:3000 (or $PORT)
+npm start                  # listens on http://localhost:43172 (or $PORT)
 ```
 
 Seeded users (bcrypt-hashed passwords, see mitigation #2):

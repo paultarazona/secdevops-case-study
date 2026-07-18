@@ -32,7 +32,17 @@ test('serves the static frontend entry point', async () => {
 
   assert.equal(res.status, 200);
   assert.match(res.headers['content-type'], /text\/html/);
-  assert.match(res.text, /SECDEVOPS CASE STUDY \/ V2/);
+  assert.match(res.text, /SecDevOps Lab/);
+});
+
+test('serves the shared challenge catalog', async () => {
+  const res = await request(app).get('/lab/catalog.js');
+
+  assert.equal(res.status, 200);
+  assert.match(res.headers['content-type'], /javascript/);
+  assert.match(res.text, /SQL Injection/);
+  assert.match(res.text, /id: 'idor'.*available: true/);
+  assert.match(res.text, /id: 'upload-traversal'.*available: true/);
 });
 
 test('register + login issues a working access token', async () => {
@@ -62,6 +72,38 @@ test('login with wrong password is rejected with a generic error', async () => {
     .send({ username: 'bad-login-user', password: 'wrong-password' });
 
   assert.equal(res.status, 401);
+});
+
+test('SQL injection input cannot bypass V2 login', async () => {
+  const res = await request(app)
+    .post('/api/auth/login')
+    .send({ username: "' OR '1'='1' -- ", password: 'unused' });
+
+  assert.equal(res.status, 401);
+  assert.deepEqual(res.body, { error: 'Invalid credentials' });
+});
+
+test('returns hardened lab evidence without exposing secrets or hashes', async () => {
+  await request(app)
+    .post('/api/auth/register')
+    .send({ username: 'lab-evidence-user', password: 'lab-evidence-password' });
+  const login = await request(app)
+    .post('/api/auth/login')
+    .send({ username: 'lab-evidence-user', password: 'lab-evidence-password' });
+  const headers = { Authorization: `Bearer ${login.body.token}` };
+  const [passwords, jwt, configuration, secrets] = await Promise.all([
+    request(app).get('/api/lab/password-storage').set(headers),
+    request(app).get('/api/lab/jwt-lifecycle').set(headers),
+    request(app).get('/api/lab/security-configuration').set(headers),
+    request(app).get('/api/lab/hardcoded-secrets').set(headers),
+  ]);
+
+  assert.deepEqual(passwords.body, { storage: 'bcrypt', rounds: 12, hashExposed: false, username: 'lab-evidence-user' });
+  assert.equal(jwt.body.algorithmPinned, true);
+  assert.equal(jwt.body.refreshRotation, true);
+  assert.equal(configuration.body.securityHeaders, true);
+  assert.equal(secrets.body.secretSource, 'environment');
+  assert.equal(secrets.body.secretExposed, false);
 });
 
 test('resources require authentication', async () => {

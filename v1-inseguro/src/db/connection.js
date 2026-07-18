@@ -6,7 +6,9 @@ const Database = require('better-sqlite3');
 // The DB file path is hardcoded directly in source instead of coming from an
 // environment variable / config file. In a real app this would also be where
 // DB credentials for a networked database would leak into source control.
-const DB_PATH = path.join(__dirname, '..', '..', 'data', 'v1-inseguro.db');
+// Tests may supply an isolated disposable file. Normal application execution
+// still uses the intentionally hardcoded path documented by this lesson.
+const DB_PATH = process.env.V1_TEST_DB_PATH || path.join(__dirname, '..', '..', 'data', 'v1-inseguro.db');
 
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 

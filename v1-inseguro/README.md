@@ -39,9 +39,10 @@ accounts.
 
 ### Docker
 
+From the repository root:
+
 ```bash
-cd v1-inseguro
-docker build -t v1-inseguro .
+docker build -f v1-inseguro/Dockerfile -t v1-inseguro .
 docker run -p 3000:3000 v1-inseguro
 ```
 

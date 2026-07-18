@@ -11,10 +11,11 @@ RUN apk update && apk upgrade --no-cache && apk add --no-cache python3 make g++
 # node-gyp's dependency chain - resolving fresh from package.json here (with
 # "overrides" in effect) ensures those transitive deps get patched versions
 # instead of whatever stale ones a Windows-generated lockfile would imply.
-COPY package.json ./
+COPY v2-seguro/package.json ./
 RUN npm install --omit=dev
 
-COPY . .
+COPY v2-seguro/ .
+COPY lab /lab
 
 RUN mkdir -p data src/uploads
 
@@ -23,6 +24,7 @@ RUN mkdir -p data src/uploads
 RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx /root/.npm
 
 ENV NODE_ENV=production
+ENV LAB_ASSETS_PATH=/lab
 
 EXPOSE 3000
 

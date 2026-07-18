@@ -44,4 +44,6 @@ Ambas se inician con los usuarios `alice` / `alice123` y `bob` / `bob123`.
 
 Las dos apps tienen el mismo alcance funcional, pero v1 expone SQL injection, contraseñas en texto plano, JWT inseguro, IDOR, upload inseguro, configuración abierta y secretos hardcodeados. V2 mitiga esos riesgos con consultas parametrizadas, bcrypt, validación, autorización, headers, rate limiting y configuración mediante variables de entorno.
 
+Ambas interfaces incluyen el catalogo del laboratorio: las siete vulnerabilidades originales ya estan disponibles como lecciones guiadas. La documentacion esta en [`docs/challenges/`](./docs/challenges/).
+
 Para el detalle y los ejercicios: [`v1-inseguro/README.md`](./v1-inseguro/README.md), [`v2-seguro/README.md`](./v2-seguro/README.md) y [`plan-proyecto-secdevops.md`](./plan-proyecto-secdevops.md).

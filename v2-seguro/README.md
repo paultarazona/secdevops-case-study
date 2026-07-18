@@ -60,9 +60,10 @@ IDOR exploit from v1 no longer works here.
 
 ### Docker
 
+From the repository root:
+
 ```bash
-cd v2-seguro
-docker build -t v2-seguro .
+docker build -f v2-seguro/Dockerfile -t v2-seguro .
 docker run -p 3000:3000 --env-file .env v2-seguro
 ```
 

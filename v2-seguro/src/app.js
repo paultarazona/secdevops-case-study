@@ -8,6 +8,7 @@ const requireAuth = require('./middleware/auth');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const authRoutes = require('./routes/auth');
 const resourcesRoutes = require('./routes/resources');
+const labRoutes = require('./routes/lab');
 
 const app = express();
 
@@ -16,12 +17,14 @@ const app = express();
 app.use(buildHelmetMiddleware());
 app.use(cors(corsOptions));
 app.use(express.json());
+app.use('/lab', express.static(process.env.LAB_ASSETS_PATH || path.resolve(__dirname, '..', '..', 'lab')));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/resources', requireAuth, resourcesRoutes);
+app.use('/api/lab', requireAuth, labRoutes);
 
 app.use(notFoundHandler);
 
